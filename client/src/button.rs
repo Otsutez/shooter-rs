@@ -1,6 +1,8 @@
+use crate::game::Game;
 use raylib::{
     color::Color,
     drawing::{RaylibDraw, RaylibDrawHandle},
+    ffi::MouseButton,
     math::Rectangle,
     RaylibHandle,
 };
@@ -38,6 +40,14 @@ impl Button {
     pub fn draw(&self, d: &mut RaylibDrawHandle) {
         self.state.as_ref().unwrap().draw(d, self);
     }
+
+    pub fn is_clicked(&self) -> bool {
+        self.clicked
+    }
+
+    pub fn toggle_clicked(&mut self) {
+        self.clicked = !self.clicked;
+    }
 }
 
 struct Idle;
@@ -46,12 +56,12 @@ struct MidClick;
 struct Clicked;
 
 trait ButtonState {
-    fn update(self: Box<Self>, rl: &RaylibHandle, button: &Button) -> Box<dyn ButtonState>;
+    fn update(self: Box<Self>, rl: &RaylibHandle, button: &mut Button) -> Box<dyn ButtonState>;
     fn draw(&self, d: &mut RaylibDrawHandle, button: &Button);
 }
 
 impl ButtonState for Idle {
-    fn update(self: Box<Self>, rl: &RaylibHandle, button: &Button) -> Box<dyn ButtonState> {
+    fn update(self: Box<Self>, rl: &RaylibHandle, button: &mut Button) -> Box<dyn ButtonState> {
         let mouse_point = rl.get_mouse_position();
 
         if button.rect.check_collision_point_rec(mouse_point) {
@@ -77,19 +87,23 @@ impl ButtonState for Idle {
             Color::GOLD,
         );
 
-        let text_size = d.measure_text(&button.text, 20);
+        let text_size = d.measure_text(&button.text, Game::FONT_SIZE);
         let text_x = button.rect.x as i32 + button.rect.width as i32 / 2 - text_size / 2;
-        let text_y = button.rect.y as i32 + button.rect.height as i32 / 2 - 10;
+        let text_y = button.rect.y as i32 + button.rect.height as i32 / 2 - Game::FONT_SIZE / 2;
         d.draw_text(&button.text, text_x, text_y, 20, Color::BLACK);
     }
 }
 
 impl ButtonState for Hover {
-    fn update(self: Box<Self>, rl: &RaylibHandle, button: &Button) -> Box<dyn ButtonState> {
+    fn update(self: Box<Self>, rl: &RaylibHandle, button: &mut Button) -> Box<dyn ButtonState> {
         let mouse_point = rl.get_mouse_position();
 
         if button.rect.check_collision_point_rec(mouse_point) {
-            Box::new(Hover)
+            if rl.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT) {
+                Box::new(MidClick)
+            } else {
+                Box::new(Hover)
+            }
         } else {
             Box::new(Idle)
         }
@@ -109,6 +123,45 @@ impl ButtonState for Hover {
             Button::SEGMENTS,
             Button::LINE_THICKNESS,
             Color::YELLOW,
+        );
+
+        let text_size = d.measure_text(&button.text, 20);
+        let text_x = button.rect.x as i32 + button.rect.width as i32 / 2 - text_size / 2;
+        let text_y = button.rect.y as i32 + button.rect.height as i32 / 2 - 10;
+        d.draw_text(&button.text, text_x, text_y, 20, Color::BLACK);
+    }
+}
+
+impl ButtonState for MidClick {
+    fn update(self: Box<Self>, rl: &RaylibHandle, button: &mut Button) -> Box<dyn ButtonState> {
+        let mouse_point = rl.get_mouse_position();
+
+        if rl.is_mouse_button_released(MouseButton::MOUSE_BUTTON_LEFT) {
+            if button.rect.check_collision_point_rec(mouse_point) {
+                button.clicked = true;
+                Box::new(Hover)
+            } else {
+                Box::new(Idle)
+            }
+        } else {
+            Box::new(MidClick)
+        }
+    }
+
+    fn draw(&self, d: &mut RaylibDrawHandle, button: &Button) {
+        d.draw_rectangle_rounded(
+            button.rect,
+            Button::ROUNDNESS,
+            Button::SEGMENTS,
+            Color::ORANGE.fade(0.6),
+        );
+
+        d.draw_rectangle_rounded_lines(
+            button.rect,
+            Button::ROUNDNESS,
+            Button::SEGMENTS,
+            Button::LINE_THICKNESS,
+            Color::ORANGE,
         );
 
         let text_size = d.measure_text(&button.text, 20);

@@ -1,7 +1,2 @@
-[package]
-name = "shooter"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-raylib = { version = "5.0.2" }
+[workspace]
+members = ["client", "server"]
