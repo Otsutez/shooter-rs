@@ -7,9 +7,8 @@ use crate::button::Button;
 use crate::input_box::InputBox;
 use crate::map::Map;
 use crate::object::Drawable3D;
-use crate::player::{Player, PlayerPacket};
+use crate::player::Player;
 use raylib::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::net::TcpStream;
 
 pub struct Game {
@@ -157,7 +156,7 @@ impl GameState for LobbyState {
 struct WaitState {
     rl: RaylibHandle,
     thread: RaylibThread,
-    text: String,
+    stream: TcpStream,
     player: Player,
     map: Map,
 }
@@ -166,48 +165,43 @@ impl WaitState {
     fn try_build(
         rl: RaylibHandle,
         thread: RaylibThread,
-        stream: TcpStream,
+        mut stream: TcpStream,
         map: Map,
     ) -> Option<Self> {
-        if let Ok(player_packet) = read_player_packet_from_stream(stream) {
-            Some(WaitState {
+        // Read player position from stream
+        let mut player = Player::default();
+        match player.read_pos(&mut stream) {
+            Ok(_) => Some(WaitState {
                 rl,
                 thread,
-                text: String::from("Waiting for enemy..."),
-                player: Player::new(player_packet.get_pos()),
+                stream,
+                player,
                 map,
-            })
-        } else {
-            None
+            }),
+            Err(_) => None,
         }
     }
 }
 
 impl GameState for WaitState {
     fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
-        self.rl.disable_cursor();
+        // self.rl.disable_cursor();
         loop {
             if self.rl.window_should_close() {
                 break None;
             }
 
             // Update
-            // self.player.update(&self.rl);
+            self.player.update(&self.rl);
+            self.player
+                .write_pos(&mut self.stream)
+                .expect("Sending player pos to server");
 
             // Draw
             let mut d = self.rl.begin_drawing(&self.thread);
             d.clear_background(Color::SKYBLUE);
             self.map.draw(&mut d, self.player.get_camera());
-            d.draw_text(&self.text, 200, 200, 50, Color::BLACK);
+            d.draw_text("Waiting for enemy...", 200, 200, 50, Color::BLACK);
         }
     }
-}
-
-fn read_player_packet_from_stream(
-    tcp_stream: TcpStream,
-) -> Result<PlayerPacket, Box<dyn std::error::Error>> {
-    let mut de = serde_json::Deserializer::from_reader(tcp_stream);
-    let u = PlayerPacket::deserialize(&mut de)?;
-
-    Ok(u)
 }
