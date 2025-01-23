@@ -1,4 +1,6 @@
+use crate::object::{Cuboid, Drawable3D, Movable};
 use raylib::camera::Camera3D;
+use raylib::color::Color;
 use raylib::ffi::KeyboardKey;
 use raylib::math::{Quaternion, Vector3};
 use raylib::RaylibHandle;
@@ -8,6 +10,28 @@ use std::net::TcpStream;
 pub struct Player {
     camera: Camera3D,
     velocity: Vector3,
+    body: Cuboid,
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        let camera_pos = Vector3::new(0.0, Self::CAMERA_HEIGHT, 0.0);
+        let camera =
+            Camera3D::perspective(camera_pos, Vector3::forward(), Vector3::up(), Self::FOV);
+        let body_pos = Vector3::new(0.0, Self::PLAYER_HEIGHT_HALF, 0.0);
+        let body_size = Vector3::new(
+            Player::PLAYER_UNIT,
+            Player::PLAYER_HEIGHT,
+            Player::PLAYER_UNIT,
+        );
+        let body = Cuboid::new(body_pos, body_size, Color::GREEN);
+
+        Player {
+            camera,
+            velocity: Vector3::zero(),
+            body,
+        }
+    }
 }
 
 impl Player {
@@ -15,6 +39,9 @@ impl Player {
     const CAMERA_HEIGHT: f32 = 3.2;
     const CAMERA_MOUSE_SENSITIVITY: f32 = 0.0075;
     const SPEED: f32 = 60.0;
+    const PLAYER_HEIGHT: f32 = 3.5;
+    const PLAYER_HEIGHT_HALF: f32 = Self::PLAYER_HEIGHT / 2.0;
+    const PLAYER_UNIT: f32 = 1.0;
 
     pub fn get_camera(&self) -> &Camera3D {
         &self.camera
@@ -92,6 +119,9 @@ impl Player {
         // Change camera position
         self.camera.position += displacement;
         self.camera.target += displacement;
+
+        // Move body to match camera
+        self.move_body();
     }
 
     pub fn write_pos(&self, stream: &mut TcpStream) -> std::io::Result<()> {
@@ -107,21 +137,25 @@ impl Player {
         stream.read(&mut y)?;
         self.camera.position.x = f32::from_be_bytes(x);
         self.camera.position.z = f32::from_be_bytes(y);
+        self.move_body();
         Ok(())
     }
-}
 
-impl Default for Player {
-    fn default() -> Self {
-        let pos = Vector3::new(0.0, Self::CAMERA_HEIGHT, 0.0);
-        let camera = Camera3D::perspective(pos, Vector3::forward(), Vector3::up(), Self::FOV);
-        Player {
-            camera,
-            velocity: Vector3::zero(),
-        }
+    fn move_body(&mut self) {
+        self.body.move_to(Vector3::new(
+            self.camera.position.x,
+            Self::PLAYER_HEIGHT_HALF,
+            self.camera.position.z,
+        ));
     }
 }
 
 fn find_angle(vec_1: Vector3, vec_2: Vector3) -> f32 {
     (vec_1.dot(vec_2) / (vec_1.length() * vec_2.length())).acos()
+}
+
+impl Drawable3D for Player {
+    fn draw(&self, d: &mut raylib::prelude::RaylibDrawHandle, camera: &Camera3D) {
+        self.body.draw(d, camera);
+    }
 }

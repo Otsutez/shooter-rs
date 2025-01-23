@@ -64,7 +64,7 @@ impl LobbyState {
         let quit_y = Game::SCREEN_HEIGHT / 2 + Button::HEIGHT / 2 + Button::SPACING;
 
         // Camera
-        let pos = Vector3::new(30.0, 20.0, 30.0);
+        let pos = Vector3::new(20.0, 13.0, 20.0);
         let target = Vector3::zero();
         let up = Vector3::up();
         let fovy = 60.0;
@@ -130,20 +130,20 @@ impl GameState for LobbyState {
             if self.play_button.is_clicked() {
                 // Check if can connect to server
                 // let ip = self.input_box.get_text();
-                let stream = match TcpStream::connect("127.0.0.1:1234") {
-                    Ok(s) => s,
-                    Err(_) => {
-                        self.play_button.toggle_clicked();
-                        continue;
+                if let Ok(mut stream) = TcpStream::connect("127.0.0.1:1234") {
+                    let mut player = Player::default();
+                    if let Ok(_) = player.read_pos(&mut stream) {
+                        break Some(Box::new(WaitState::new(
+                            self.rl,
+                            self.thread,
+                            stream,
+                            player,
+                            self.map,
+                            self.camera,
+                        )));
                     }
-                };
-
-                // Can connect to server, try building WaitState
-                if let Some(s) = WaitState::try_build(self.rl, self.thread, stream, self.map) {
-                    break Some(Box::new(s));
-                } else {
-                    break None;
                 }
+                self.play_button.toggle_clicked();
             }
 
             if self.quit_button.is_clicked() {
@@ -159,26 +159,25 @@ struct WaitState {
     stream: TcpStream,
     player: Player,
     map: Map,
+    camera: Camera3D,
 }
 
 impl WaitState {
-    fn try_build(
+    fn new(
         rl: RaylibHandle,
         thread: RaylibThread,
-        mut stream: TcpStream,
+        stream: TcpStream,
+        player: Player,
         map: Map,
-    ) -> Option<Self> {
-        // Read player position from stream
-        let mut player = Player::default();
-        match player.read_pos(&mut stream) {
-            Ok(_) => Some(WaitState {
-                rl,
-                thread,
-                stream,
-                player,
-                map,
-            }),
-            Err(_) => None,
+        camera: Camera3D,
+    ) -> Self {
+        WaitState {
+            rl,
+            thread,
+            stream,
+            player,
+            map,
+            camera,
         }
     }
 }
@@ -186,22 +185,103 @@ impl WaitState {
 impl GameState for WaitState {
     fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
         // self.rl.disable_cursor();
+        let text = "Waiting for enemy...";
+        let text_width = self.rl.measure_text(text, 50);
+        let text_x = Game::SCREEN_WIDTH / 2 - text_width / 2;
+
+        let mut enemy = Player::default();
+
+        self.stream
+            .set_nonblocking(true)
+            .expect("Set non blocking failed");
+
         loop {
             if self.rl.window_should_close() {
                 break None;
             }
 
             // Update
-            self.player.update(&self.rl);
-            self.player
-                .write_pos(&mut self.stream)
-                .expect("Sending player pos to server");
+            self.rl
+                .update_camera(&mut self.camera, CameraMode::CAMERA_ORBITAL);
 
             // Draw
             let mut d = self.rl.begin_drawing(&self.thread);
             d.clear_background(Color::SKYBLUE);
-            self.map.draw(&mut d, self.player.get_camera());
-            d.draw_text("Waiting for enemy...", 200, 200, 50, Color::BLACK);
+            self.map.draw(&mut d, &self.camera);
+            self.player.draw(&mut d, &self.camera);
+            d.draw_text(text, text_x, 100, 50, Color::BLACK);
+            drop(d);
+
+            // Check if enemy position sent
+            if let Ok(_) = enemy.read_pos(&mut self.stream) {
+                break Some(Box::new(CountDownState::new(
+                    self.rl,
+                    self.thread,
+                    self.stream,
+                    self.player,
+                    enemy,
+                    self.map,
+                    self.camera,
+                )));
+            }
+        }
+    }
+}
+
+struct CountDownState {
+    rl: RaylibHandle,
+    thread: RaylibThread,
+    stream: TcpStream,
+    player: Player,
+    enemy: Player,
+    map: Map,
+    camera: Camera3D,
+}
+
+impl CountDownState {
+    fn new(
+        rl: RaylibHandle,
+        thread: RaylibThread,
+        stream: TcpStream,
+        player: Player,
+        enemy: Player,
+        map: Map,
+        camera: Camera3D,
+    ) -> Self {
+        CountDownState {
+            rl,
+            thread,
+            stream,
+            player,
+            enemy,
+            map,
+            camera,
+        }
+    }
+}
+
+impl GameState for CountDownState {
+    fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
+        // self.rl.disable_cursor();
+        let text = "3";
+        let text_width = self.rl.measure_text(text, 50);
+        let text_x = Game::SCREEN_WIDTH / 2 - text_width / 2;
+        loop {
+            if self.rl.window_should_close() {
+                break None;
+            }
+
+            // Update
+            self.rl
+                .update_camera(&mut self.camera, CameraMode::CAMERA_ORBITAL);
+
+            // Draw
+            let mut d = self.rl.begin_drawing(&self.thread);
+            d.clear_background(Color::SKYBLUE);
+            self.map.draw(&mut d, &self.camera);
+            self.player.draw(&mut d, &self.camera);
+            self.enemy.draw(&mut d, &self.camera);
+            d.draw_text(text, text_x, 100, 50, Color::BLACK);
         }
     }
 }
