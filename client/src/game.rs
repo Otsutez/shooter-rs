@@ -9,7 +9,9 @@ use crate::map::Map;
 use crate::object::Drawable3D;
 use crate::player::Player;
 use raylib::prelude::*;
+use std::io::prelude::*;
 use std::net::TcpStream;
+use std::str::from_utf8;
 
 pub struct Game {
     state: Option<Box<dyn GameState>>,
@@ -191,6 +193,7 @@ impl GameState for WaitState {
 
         let mut enemy = Player::default();
 
+        // Set stream to non blocking so that game doesn't freeze
         self.stream
             .set_nonblocking(true)
             .expect("Set non blocking failed");
@@ -263,12 +266,18 @@ impl CountDownState {
 impl GameState for CountDownState {
     fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
         // self.rl.disable_cursor();
-        let text = "3";
-        let text_width = self.rl.measure_text(text, 50);
+        let mut buf = [0u8; 1];
+        let mut text = String::from("3");
+        let text_width = self.rl.measure_text(&text, 50);
         let text_x = Game::SCREEN_WIDTH / 2 - text_width / 2;
         loop {
             if self.rl.window_should_close() {
                 break None;
+            }
+
+            // Receive time from server
+            if let Ok(_) = self.stream.read(&mut buf) {
+                text = std::str::from_utf8(&buf).unwrap().to_owned();
             }
 
             // Update
@@ -281,7 +290,7 @@ impl GameState for CountDownState {
             self.map.draw(&mut d, &self.camera);
             self.player.draw(&mut d, &self.camera);
             self.enemy.draw(&mut d, &self.camera);
-            d.draw_text(text, text_x, 100, 50, Color::BLACK);
+            d.draw_text(&text, text_x, 100, 50, Color::BLACK);
         }
     }
 }
