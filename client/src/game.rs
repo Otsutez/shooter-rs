@@ -11,7 +11,6 @@ use crate::player::Player;
 use raylib::prelude::*;
 use std::io::prelude::*;
 use std::net::TcpStream;
-use std::str::from_utf8;
 
 pub struct Game {
     state: Option<Box<dyn GameState>>,
@@ -280,6 +279,17 @@ impl GameState for CountDownState {
                 text = std::str::from_utf8(&buf).unwrap().to_owned();
             }
 
+            if &text == "0" {
+                break Some(Box::new(PlayState::new(
+                    self.rl,
+                    self.thread,
+                    self.stream,
+                    self.player,
+                    self.enemy,
+                    self.map,
+                )));
+            }
+
             // Update
             self.rl
                 .update_camera(&mut self.camera, CameraMode::CAMERA_ORBITAL);
@@ -291,6 +301,66 @@ impl GameState for CountDownState {
             self.player.draw(&mut d, &self.camera);
             self.enemy.draw(&mut d, &self.camera);
             d.draw_text(&text, text_x, 100, 50, Color::BLACK);
+        }
+    }
+}
+
+struct PlayState {
+    rl: RaylibHandle,
+    thread: RaylibThread,
+    stream: TcpStream,
+    player: Player,
+    enemy: Player,
+    map: Map,
+}
+
+impl PlayState {
+    fn new(
+        rl: RaylibHandle,
+        thread: RaylibThread,
+        stream: TcpStream,
+        player: Player,
+        enemy: Player,
+        map: Map,
+    ) -> Self {
+        PlayState {
+            rl,
+            thread,
+            stream,
+            player,
+            enemy,
+            map,
+        }
+    }
+}
+
+impl GameState for PlayState {
+    fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
+        loop {
+            if self.rl.window_should_close() {
+                break None;
+            }
+
+            // Receive enemy position
+            self.enemy
+                .read_pos(&mut self.stream)
+                .expect("Reading enemy position failed");
+
+            // Update player position
+            self.player.update(&self.rl);
+
+            // Send next player position
+            self.player
+                .write_pos(&mut self.stream)
+                .expect("Sending player position failed");
+
+            // Draw
+            let player_camera = self.player.get_camera();
+            let mut d = self.rl.begin_drawing(&self.thread);
+            d.clear_background(Color::SKYBLUE);
+            // self.player.draw(&mut d, player_camera);
+            self.enemy.draw(&mut d, player_camera);
+            self.map.draw(&mut d, player_camera);
         }
     }
 }
