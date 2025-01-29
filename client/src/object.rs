@@ -1,7 +1,7 @@
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
-use raylib::math::{Vector2, Vector3};
+use raylib::math::{BoundingBox, Vector2, Vector3};
 
 // ----------------------------------------------------------------------------
 // Traits for 3D objecs
@@ -51,6 +51,24 @@ pub struct Cuboid {
 impl Cuboid {
     pub fn new(pos: Vector3, size: Vector3, color: Color) -> Self {
         Cuboid { pos, size, color }
+    }
+
+    pub fn get_bounding_box(&self) -> BoundingBox {
+        let half_length = self.size.z / 2.0;
+        let half_width = self.size.x / 2.0;
+        let half_height = self.size.y / 2.0;
+
+        let min = Vector3::new(
+            self.pos.x - half_width,
+            self.pos.y - half_height,
+            self.pos.z - half_length,
+        );
+        let max = Vector3::new(
+            self.pos.x + half_width,
+            self.pos.y + half_height,
+            self.pos.z + half_length,
+        );
+        BoundingBox::new(min, max)
     }
 }
 

@@ -8,7 +8,7 @@ use crate::object::{Cuboid, Drawable3D, Plane};
 
 pub struct Map {
     plane: Plane,
-    objects: Vec<Box<dyn Drawable3D>>,
+    pub objects: Vec<Cuboid>,
 }
 
 impl Map {
@@ -27,30 +27,30 @@ impl Default for Map {
             Color::GRAY,
         );
 
-        let mut objects: Vec<Box<dyn Drawable3D>> = Vec::new();
+        let mut objects: Vec<Cuboid> = Vec::new();
 
         // Construct walls
         let wall_offset = Map::LENGTH / 2.0 + Map::UNIT / 2.0;
-        objects.push(Box::new(Cuboid::new(
+        objects.push(Cuboid::new(
             Vector3::new(wall_offset, Map::UNIT, 0.0),
             Vector3::new(Map::UNIT, Map::WALL_HEIGHT, Map::WIDTH),
             Color::DARKGRAY,
-        )));
-        objects.push(Box::new(Cuboid::new(
+        ));
+        objects.push(Cuboid::new(
             Vector3::new(-wall_offset, Map::UNIT, 0.0),
             Vector3::new(Map::UNIT, Map::WALL_HEIGHT, Map::WIDTH),
             Color::DARKGRAY,
-        )));
-        objects.push(Box::new(Cuboid::new(
+        ));
+        objects.push(Cuboid::new(
             Vector3::new(0.0, Map::UNIT, wall_offset),
             Vector3::new(Map::LENGTH, Map::WALL_HEIGHT, Map::UNIT),
             Color::DARKGRAY,
-        )));
-        objects.push(Box::new(Cuboid::new(
+        ));
+        objects.push(Cuboid::new(
             Vector3::new(0.0, Map::UNIT, -wall_offset),
             Vector3::new(Map::LENGTH, Map::WALL_HEIGHT, Map::UNIT),
             Color::DARKGRAY,
-        )));
+        ));
 
         // Construct cuboids
         let maps = read_to_string("./map.txt").unwrap();
@@ -68,7 +68,7 @@ impl Default for Map {
                         size.y / 2.0,
                         i as f32 * Map::UNIT - half + Map::UNIT / 2.0,
                     );
-                    objects.push(Box::new(Cuboid::new(pos, size, Color::RED)));
+                    objects.push(Cuboid::new(pos, size, Color::RED));
                 }
             }
         }
