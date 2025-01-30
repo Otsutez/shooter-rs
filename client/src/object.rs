@@ -74,20 +74,7 @@ impl Cuboid {
         BoundingBox::new(min, max)
     }
 
-    pub fn draw_target(&self, d: &mut RaylibDrawHandle, camera: &Camera3D, target: Vector3) {
-        let mut direction = target - self.pos;
-        let forward = Vector3::forward();
-
-        direction.y = 0.0;
-
-        let cross_product = forward.cross(direction);
-        let mut angle = f32::atan2(cross_product.length(), forward.dot(direction)) * 180.0
-            / std::f32::consts::PI;
-
-        if cross_product.y < 0.0 {
-            angle = 360.0 - angle;
-        }
-
+    pub fn draw_target(&self, d: &mut RaylibDrawHandle, camera: &Camera3D, angle: f32) {
         let mut d = d.begin_mode3D(camera);
         unsafe {
             rlPushMatrix();

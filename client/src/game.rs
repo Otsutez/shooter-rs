@@ -377,7 +377,7 @@ impl GameState for PlayState {
             let player_camera = self.player.get_camera();
             let mut d = self.rl.begin_drawing(&self.thread);
             d.clear_background(Color::SKYBLUE);
-            // self.player.draw(&mut d, player_camera);
+            self.player.draw_gun(&mut d, player_camera);
             self.enemy.draw(&mut d, player_camera);
             self.map.draw(&mut d, player_camera);
 

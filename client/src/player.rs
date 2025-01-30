@@ -1,3 +1,4 @@
+use crate::gun::Pistol;
 use crate::object::{Cuboid, Drawable3D, Movable};
 use game_channel::{Channel, ChannelVector2, Packet};
 use raylib::camera::Camera3D;
@@ -12,6 +13,7 @@ pub struct Player {
     camera: Camera3D,
     velocity: Vector3,
     body: Cuboid,
+    pistol: Pistol,
 }
 
 impl Default for Player {
@@ -26,11 +28,13 @@ impl Default for Player {
             Player::PLAYER_UNIT,
         );
         let body = Cuboid::new(body_pos, body_size, Color::GREEN);
+        let pistol = Pistol::new();
 
         Player {
             camera,
             velocity: Vector3::zero(),
             body,
+            pistol,
         }
     }
 }
@@ -38,7 +42,7 @@ impl Default for Player {
 impl Player {
     const FOV: f32 = 60.0;
     const CAMERA_HEIGHT: f32 = 3.2;
-    const CAMERA_MOUSE_SENSITIVITY: f32 = 0.0045;
+    const CAMERA_MOUSE_SENSITIVITY: f32 = 0.0015;
     const SPEED: f32 = 90.0;
     const PLAYER_HEIGHT: f32 = 3.5;
     const PLAYER_HEIGHT_HALF: f32 = Self::PLAYER_HEIGHT / 2.0;
@@ -202,6 +206,23 @@ impl Player {
     pub fn get_pos(&self) -> (f32, f32) {
         (self.camera.position.x, self.camera.position.z)
     }
+
+    pub fn draw_gun(&self, d: &mut raylib::prelude::RaylibDrawHandle, camera: &Camera3D) {
+        let mut direction = self.camera.target - self.camera.position;
+        let forward = Vector3::forward();
+
+        direction.y = 0.0;
+
+        let cross_product = forward.cross(direction);
+        let mut angle = f32::atan2(cross_product.length(), forward.dot(direction)) * 180.0
+            / std::f32::consts::PI;
+
+        if cross_product.y < 0.0 {
+            angle = 360.0 - angle;
+        }
+        self.pistol
+            .draw_target(d, camera, self.camera.position, angle);
+    }
 }
 
 pub fn find_angle(vec_1: Vector3, vec_2: Vector3) -> f32 {
@@ -210,6 +231,20 @@ pub fn find_angle(vec_1: Vector3, vec_2: Vector3) -> f32 {
 
 impl Drawable3D for Player {
     fn draw(&self, d: &mut raylib::prelude::RaylibDrawHandle, camera: &Camera3D) {
-        self.body.draw_target(d, camera, self.camera.target);
+        let mut direction = self.camera.target - self.camera.position;
+        let forward = Vector3::forward();
+
+        direction.y = 0.0;
+
+        let cross_product = forward.cross(direction);
+        let mut angle = f32::atan2(cross_product.length(), forward.dot(direction)) * 180.0
+            / std::f32::consts::PI;
+
+        if cross_product.y < 0.0 {
+            angle = 360.0 - angle;
+        }
+        self.body.draw_target(d, camera, angle);
+        self.pistol
+            .draw_target(d, camera, self.camera.position, angle);
     }
 }
