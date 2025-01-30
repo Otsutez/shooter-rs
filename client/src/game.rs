@@ -144,7 +144,7 @@ impl GameState for LobbyState {
                     //     .expect("Set non blocking failed");
 
                     let mut channel = Channel::with_stream(stream);
-                    if let Ok(_) = player.read_pos(&mut channel) {
+                    if let Ok(_) = player.read_stats(&mut channel) {
                         break Some(Box::new(WaitState::new(
                             self.rl,
                             self.thread,
@@ -225,7 +225,7 @@ impl GameState for WaitState {
             drop(d);
 
             // Check if enemy position sent
-            if let Ok(_) = enemy.read_pos(&mut self.channel) {
+            if let Ok(_) = enemy.read_stats(&mut self.channel) {
                 break Some(Box::new(CountDownState::new(
                     self.rl,
                     self.thread,
@@ -363,14 +363,14 @@ impl GameState for PlayState {
             }
 
             // Receive enemy position
-            let _ = self.enemy.read_pos(&mut self.channel);
+            let _ = self.enemy.read_stats(&mut self.channel);
 
             // Update player position
             self.player.update(&self.rl, &self.map.objects);
 
             // Send next player position
             self.player
-                .write_pos(&mut self.channel)
+                .write_stats(&mut self.channel)
                 .expect("Send player position failed");
 
             // Draw

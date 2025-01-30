@@ -1,10 +1,29 @@
 use bincode;
+use raylib::math::Vector3;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
+pub struct ChannelVector2 {
+    pub x: f32,
+    pub z: f32,
+}
+
+impl From<Vector3> for ChannelVector2 {
+    fn from(value: Vector3) -> Self {
+        ChannelVector2 {
+            x: value.x,
+            z: value.z,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum Packet {
-    PlayerPos { x: f32, z: f32 },
+    Player {
+        pos: ChannelVector2,
+        target: ChannelVector2,
+    },
     Time(u8),
 }
 

@@ -1,18 +1,17 @@
-use game_channel::{Channel, Packet};
-use std::io::prelude::*;
+use game_channel::{Channel, ChannelVector2, Packet};
 use std::net::{TcpListener, TcpStream};
 use std::{thread, time};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:1234")?;
-    let mut player_1 = PlayerPos::new_player_1();
-    let mut player_2 = PlayerPos::new_player_2();
+    let mut player_1 = Player::new_player_1();
+    let mut player_2 = Player::new_player_2();
     println!("Game server started on local port 1234.");
 
     println!("Waiting for connection from player...");
 
     for s1 in listener.incoming() {
-        let mut s1 = s1.expect("Error accepting connection");
+        let s1 = s1.expect("Error accepting connection");
         println!("Connection from {}", s1.peer_addr().unwrap());
         let mut c1 = Channel::with_stream(s1);
         player_1
@@ -21,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Sent player 1 initial position");
 
         // Wait for connection from player 2
-        let (mut s2, addr) = listener.accept().expect("Error accepting connection");
+        let (s2, addr) = listener.accept().expect("Error accepting connection");
         println!("Connection from {}", addr);
         let mut c2 = Channel::with_stream(s2);
 
@@ -76,33 +75,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-struct PlayerPos {
-    x: f32,
-    z: f32,
+struct Player {
+    pos: ChannelVector2,
+    target: ChannelVector2,
 }
 
-impl PlayerPos {
+impl Player {
     fn new_player_1() -> Self {
-        PlayerPos { x: 0.0, z: 18.0 }
+        Player {
+            pos: ChannelVector2 { x: 0.0, z: 18.0 },
+            target: ChannelVector2 { x: 0.0, z: -1.0 },
+        }
     }
 
     fn new_player_2() -> Self {
-        PlayerPos { x: 0.0, z: -18.0 }
+        Player {
+            pos: ChannelVector2 { x: 0.0, z: -18.0 },
+            target: ChannelVector2 { x: 0.0, z: 1.0 },
+        }
     }
 
     fn write_pos(&self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
         channel
-            .send(Packet::PlayerPos {
-                x: self.x,
-                z: self.z,
+            .send(Packet::Player {
+                pos: self.pos,
+                target: self.target,
             })
             .map_err(|_| ())
     }
 
     fn read_pos(&mut self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
-        if let Ok(Packet::PlayerPos { x, z }) = channel.receive() {
-            self.x = x;
-            self.z = z;
+        if let Ok(Packet::Player { pos, target }) = channel.receive() {
+            self.pos = pos;
+            self.target = target;
             Ok(())
         } else {
             Err(())

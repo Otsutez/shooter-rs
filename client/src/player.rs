@@ -1,5 +1,5 @@
 use crate::object::{Cuboid, Drawable3D, Movable};
-use game_channel::{Channel, Packet};
+use game_channel::{Channel, ChannelVector2, Packet};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::ffi::KeyboardKey;
@@ -169,19 +169,21 @@ impl Player {
         BoundingBox::new(min, max)
     }
 
-    pub fn write_pos(&self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
+    pub fn write_stats(&self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
         channel
-            .send(Packet::PlayerPos {
-                x: self.camera.position.x,
-                z: self.camera.position.z,
+            .send(Packet::Player {
+                pos: ChannelVector2::from(self.camera.position),
+                target: ChannelVector2::from(self.camera.target),
             })
             .map_err(|_| ())
     }
 
-    pub fn read_pos(&mut self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
-        if let Ok(Packet::PlayerPos { x, z }) = channel.receive() {
-            self.camera.position.x = x;
-            self.camera.position.z = z;
+    pub fn read_stats(&mut self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
+        if let Ok(Packet::Player { pos, target }) = channel.receive() {
+            self.camera.position.x = pos.x;
+            self.camera.position.z = pos.z;
+            self.camera.target.x = target.x;
+            self.camera.target.z = target.z;
             self.move_body();
             Ok(())
         } else {
@@ -202,12 +204,12 @@ impl Player {
     }
 }
 
-fn find_angle(vec_1: Vector3, vec_2: Vector3) -> f32 {
+pub fn find_angle(vec_1: Vector3, vec_2: Vector3) -> f32 {
     (vec_1.dot(vec_2) / (vec_1.length() * vec_2.length())).acos()
 }
 
 impl Drawable3D for Player {
     fn draw(&self, d: &mut raylib::prelude::RaylibDrawHandle, camera: &Camera3D) {
-        self.body.draw(d, camera);
+        self.body.draw_target(d, camera, self.camera.target);
     }
 }

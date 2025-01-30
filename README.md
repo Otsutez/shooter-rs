@@ -1,8 +1,8 @@
 # Shooter-rs
 
 This is a rewrite of my [C++ game](https://github.com/Otsutez/shooter) in Rust.
-The game now support 2 players. Rust's raylib binding is used to create graphics
-while serde and bincode were used for networking. 
+The game now supports 2 players. Rust's raylib binding is used to create graphics
+while serde and bincode are used for networking. 
 
 To play this game first start the server.
 ```

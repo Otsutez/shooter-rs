@@ -1,7 +1,10 @@
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
+use raylib::ffi::{rlPopMatrix, rlPushMatrix, rlRotatef, rlTranslatef};
 use raylib::math::{BoundingBox, Vector2, Vector3};
+
+use crate::player::find_angle;
 
 // ----------------------------------------------------------------------------
 // Traits for 3D objecs
@@ -69,6 +72,39 @@ impl Cuboid {
             self.pos.z + half_length,
         );
         BoundingBox::new(min, max)
+    }
+
+    pub fn draw_target(&self, d: &mut RaylibDrawHandle, camera: &Camera3D, target: Vector3) {
+        let mut direction = target - self.pos;
+        let forward = Vector3::forward();
+
+        direction.y = 0.0;
+
+        let cross_product = forward.cross(direction);
+        let mut angle = f32::atan2(cross_product.length(), forward.dot(direction)) * 180.0
+            / std::f32::consts::PI;
+
+        if cross_product.y < 0.0 {
+            angle = 360.0 - angle;
+        }
+
+        let mut d = d.begin_mode3D(camera);
+        unsafe {
+            rlPushMatrix();
+            rlTranslatef(self.pos.x, self.pos.y, self.pos.z);
+            rlPushMatrix();
+            rlRotatef(angle, 0.0, 1.0, 0.0);
+            d.draw_cube_v(Vector3::zero(), self.size, self.color);
+            d.draw_cube_wires(
+                Vector3::zero(),
+                self.size.x,
+                self.size.y,
+                self.size.z,
+                Color::BLACK,
+            );
+            rlPopMatrix();
+            rlPopMatrix();
+        }
     }
 }
 
