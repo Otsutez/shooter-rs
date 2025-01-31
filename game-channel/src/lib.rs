@@ -25,6 +25,7 @@ pub enum Packet {
         target: ChannelVector2,
     },
     Time(u8),
+    Health(u8),
 }
 
 #[derive(Debug)]
@@ -48,15 +49,5 @@ impl<T: Read + Write> Channel<T> {
 
     pub fn receive(&mut self) -> Result<Packet, ChannelError> {
         bincode::deserialize_from(&mut self.stream).map_err(|_| ChannelError::ReceiveErr)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_round_trip_player_pos() {
-        todo!()
     }
 }

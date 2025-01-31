@@ -2,7 +2,7 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::RaylibMode3DExt;
 use raylib::ffi::{rlPopMatrix, rlPushMatrix, rlRotatef, rlTranslatef};
-use raylib::math::Vector3;
+use raylib::math::{Ray, Vector3};
 use raylib::prelude::RaylibDraw3D;
 use raylib::prelude::RaylibDrawHandle;
 
@@ -13,9 +13,9 @@ pub struct Pistol {
 }
 
 impl Pistol {
-    const BARREL_X_OFFSET: f32 = -0.6;
-    const BARREL_Y_OFFSET: f32 = -0.7;
-    const BARREL_Z_OFFSET: f32 = 0.9;
+    pub const BARREL_X_OFFSET: f32 = -0.6;
+    pub const BARREL_Y_OFFSET: f32 = -0.7;
+    pub const BARREL_Z_OFFSET: f32 = 0.9;
     const BARREL_WIDTH: f32 = 0.2;
     const BARREL_HEIGHT: f32 = 0.2;
     const BARREL_LENGTH: f32 = 0.8;

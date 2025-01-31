@@ -345,6 +345,7 @@ impl PlayState {
 impl GameState for PlayState {
     fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
         self.rl.disable_cursor();
+        let mut ray: Option<Ray> = None;
 
         loop {
             if self.rl.window_should_close() {
@@ -357,7 +358,7 @@ impl GameState for PlayState {
             }
             if self
                 .rl
-                .is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT)
+                .is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_RIGHT)
             {
                 self.rl.disable_cursor();
             }
@@ -365,13 +366,30 @@ impl GameState for PlayState {
             // Receive enemy position
             let _ = self.enemy.read_stats(&mut self.channel);
 
-            // Update player position
-            self.player.update(&self.rl, &self.map.objects);
+            // Receive player health
+            let _ = self.player.read_health(&mut self.channel);
+
+            // Update player
+            self.player.update(&self.rl, &self.map.objects, &mut ray);
+
+            // Handle shooting
+            if let Some(r) = ray {
+                let collision = self.enemy.collision(r);
+                if collision.hit {
+                    self.enemy.decrease_health();
+                }
+                ray = None;
+            }
 
             // Send next player position
             self.player
                 .write_stats(&mut self.channel)
                 .expect("Send player position failed");
+
+            // Send enemy health
+            self.enemy
+                .write_health(&mut self.channel)
+                .expect("Send enemy health failed");
 
             // Draw
             let player_camera = self.player.get_camera();
@@ -380,6 +398,9 @@ impl GameState for PlayState {
             self.player.draw_gun(&mut d, player_camera);
             self.enemy.draw(&mut d, player_camera);
             self.map.draw(&mut d, player_camera);
+
+            // Draw health bar
+            self.player.draw_health_bar(&mut d);
 
             // Player and enemy position debugging
             let (x, z) = self.player.get_pos();

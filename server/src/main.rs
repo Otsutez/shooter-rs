@@ -63,6 +63,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .write_pos(&mut c2)
                 .expect("Sending enemy to s2 failed");
 
+            // Send players health
+            player_1
+                .write_health(&mut c1)
+                .expect("Sending player health to c1 failed");
+            player_2
+                .write_health(&mut c2)
+                .expect("Sending player health to c2 failed");
+
             // Receive players
             player_2
                 .read_pos(&mut c2)
@@ -70,6 +78,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             player_1
                 .read_pos(&mut c1)
                 .expect("Reading player_1 pos failed");
+
+            // Receive enemies health
+            player_2
+                .read_health(&mut c1)
+                .expect("Sending player health to c1 failed");
+            player_1
+                .read_health(&mut c2)
+                .expect("Sending player health to c2 failed");
         }
     }
     Ok(())
@@ -78,6 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 struct Player {
     pos: ChannelVector2,
     target: ChannelVector2,
+    health: u8,
 }
 
 impl Player {
@@ -85,6 +102,7 @@ impl Player {
         Player {
             pos: ChannelVector2 { x: 0.0, z: 18.0 },
             target: ChannelVector2 { x: 0.0, z: -1.0 },
+            health: 100,
         }
     }
 
@@ -92,6 +110,7 @@ impl Player {
         Player {
             pos: ChannelVector2 { x: 0.0, z: -18.0 },
             target: ChannelVector2 { x: 0.0, z: 1.0 },
+            health: 100,
         }
     }
 
@@ -108,6 +127,19 @@ impl Player {
         if let Ok(Packet::Player { pos, target }) = channel.receive() {
             self.pos = pos;
             self.target = target;
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    fn write_health(&self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
+        channel.send(Packet::Health(self.health)).map_err(|_| ())
+    }
+
+    fn read_health(&mut self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
+        if let Ok(Packet::Health(health)) = channel.receive() {
+            self.health = health;
             Ok(())
         } else {
             Err(())
