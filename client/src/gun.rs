@@ -10,6 +10,7 @@ pub struct Pistol {
     barrel_size: Vector3,
     grip_size: Vector3,
     color: Color,
+    on_cooldown: bool,
 }
 
 impl Pistol {
@@ -35,6 +36,7 @@ impl Pistol {
             barrel_size,
             grip_size,
             color: Color::DARKSLATEBLUE,
+            on_cooldown: false,
         }
     }
 

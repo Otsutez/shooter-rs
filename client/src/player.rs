@@ -2,6 +2,7 @@ use crate::game::Game;
 use crate::gun::Pistol;
 use crate::object::{Cuboid, Drawable3D, Movable};
 use game_channel::{Channel, ChannelVector2, Packet};
+use raylib::audio::Sound;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::ffi::{KeyboardKey, MouseButton};
@@ -218,8 +219,15 @@ impl Player {
         channel.send(Packet::Health(self.health)).map_err(|_| ())
     }
 
-    pub fn read_health(&mut self, channel: &mut Channel<TcpStream>) -> Result<(), ()> {
+    pub fn read_health(
+        &mut self,
+        channel: &mut Channel<TcpStream>,
+        ouch: &Sound,
+    ) -> Result<(), ()> {
         if let Ok(Packet::Health(health)) = channel.receive() {
+            if health < self.health {
+                ouch.play();
+            }
             self.health = health;
             Ok(())
         } else {

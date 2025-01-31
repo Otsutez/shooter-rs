@@ -362,13 +362,12 @@ impl GameState for PlayState {
         let half_width = texture.width / 2;
         let half_height = texture.height / 2;
 
-        // Load gun sound
-        let fx_gun_wav = audio
-            .new_wave("./gunshot.wav")
-            .expect("Load wave file failed");
+        let fx_ouch_sound = audio
+            .new_sound("./ouch.mp3")
+            .expect("Load ouch sound effects failed");
 
         let fx_gun_sound = audio
-            .new_sound_from_wave(&fx_gun_wav)
+            .new_sound("./gunshot.wav")
             .expect("Load sound from wave failed");
 
         loop {
@@ -391,7 +390,7 @@ impl GameState for PlayState {
             let _ = self.enemy.read_stats(&mut self.channel);
 
             // Receive player health
-            let _ = self.player.read_health(&mut self.channel);
+            let _ = self.player.read_health(&mut self.channel, &fx_ouch_sound);
 
             // Update player
             self.player.update(&self.rl, &self.map.objects, &mut ray);
