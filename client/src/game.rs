@@ -8,7 +8,10 @@ use crate::input_box::InputBox;
 use crate::map::Map;
 use crate::object::Drawable3D;
 use crate::player::Player;
+use ffi::LoadWave;
 use game_channel::{Channel, Packet};
+use raylib::audio::RaylibAudio;
+use raylib::core::texture::Image;
 use raylib::prelude::*;
 use std::net::TcpStream;
 
@@ -344,8 +347,29 @@ impl PlayState {
 
 impl GameState for PlayState {
     fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
+        // Enable audio
+        let audio = RaylibAudio::init_audio_device().expect("Enabling audio failed");
+
         self.rl.disable_cursor();
         let mut ray: Option<Ray> = None;
+
+        // Load crosshair texture
+        let image = Image::load_image("./crosshair003.png").expect("Load image failed");
+        let texture = self
+            .rl
+            .load_texture_from_image(&self.thread, &image)
+            .expect("Load texture failed");
+        let half_width = texture.width / 2;
+        let half_height = texture.height / 2;
+
+        // Load gun sound
+        let fx_gun_wav = audio
+            .new_wave("./gunshot.wav")
+            .expect("Load wave file failed");
+
+        let fx_gun_sound = audio
+            .new_sound_from_wave(&fx_gun_wav)
+            .expect("Load sound from wave failed");
 
         loop {
             if self.rl.window_should_close() {
@@ -374,6 +398,7 @@ impl GameState for PlayState {
 
             // Handle shooting
             if let Some(r) = ray {
+                fx_gun_sound.play();
                 let collision = self.enemy.collision(r);
                 if collision.hit {
                     self.enemy.decrease_health();
@@ -401,6 +426,20 @@ impl GameState for PlayState {
 
             // Draw health bar
             self.player.draw_health_bar(&mut d);
+
+            // Draw Crosshair
+            d.draw_texture(
+                &texture,
+                Game::SCREEN_WIDTH / 2 - half_width,
+                Game::SCREEN_HEIGHT / 2 - half_height,
+                Color::WHITE,
+            );
+
+            // Draw ray
+            // if let Some(r) = ray {
+            //     let mut d = d.begin_mode3D(player_camera);
+            //     d.draw_ray(r, Color::BLACK);
+            // }
 
             // Player and enemy position debugging
             let (x, z) = self.player.get_pos();

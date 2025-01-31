@@ -138,11 +138,12 @@ impl Player {
         // Shooting
         // ----------------------------------------------------------------
         if rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
-            let mut offset =
-                forward_copy * Pistol::BARREL_Z_OFFSET + right * -Pistol::BARREL_X_OFFSET;
-            offset.y = Pistol::BARREL_Y_OFFSET;
+            // let mut offset =
+            //     forward_copy * Pistol::BARREL_Z_OFFSET + right * -Pistol::BARREL_X_OFFSET;
+            // offset.y = Pistol::BARREL_Y_OFFSET;
             rays.replace(Ray {
-                position: self.camera.position + offset,
+                // position: self.camera.position + offset,
+                position: self.camera.position,
                 direction: forward_copy,
             });
         }
@@ -256,14 +257,16 @@ impl Player {
     }
 
     pub fn draw_health_bar(&self, d: &mut raylib::prelude::RaylibDrawHandle) {
+        let rect_size = Vector2::new(250.0, 50.0);
         let health_size = Vector2::new(250.0 * self.health as f32 / 100.0, 50.0);
         let health_pos = Vector2::new(20.0, Game::SCREEN_HEIGHT as f32 - 20.0 - 50.0);
+        d.draw_rectangle_v(health_pos, rect_size, Color::WHITE);
         d.draw_rectangle_v(health_pos, health_size, Color::LIGHTGREEN);
         d.draw_rectangle_lines(
             health_pos.x as i32,
             health_pos.y as i32,
-            health_size.x as i32,
-            health_size.y as i32,
+            rect_size.x as i32,
+            rect_size.y as i32,
             Color::BLACK,
         );
     }
@@ -273,7 +276,7 @@ impl Player {
     }
 
     pub fn decrease_health(&mut self) {
-        self.health -= 20;
+        self.health -= 10;
     }
 }
 
@@ -302,16 +305,18 @@ impl Drawable3D for Player {
         // Health
         // Find distance between camera and player
         let distance = (self.camera.position - camera.position).length();
-        let health_size = Vector2::new(1000.0 * self.health as f32 / 100.0, 200.0) / distance;
+        let rect_size = Vector2::new(1000.0, 200.0) / distance;
+        let health_size = Vector2::new(rect_size.x * self.health as f32 / 100.0, rect_size.y);
         let mut health_pos =
             d.get_world_to_screen(self.camera.position + Vector3::new(0.0, 1.0, 0.0), camera);
-        health_pos.x -= health_size.x / 2.0;
+        health_pos.x -= rect_size.x / 2.0;
+        d.draw_rectangle_v(health_pos, rect_size, Color::WHITE);
         d.draw_rectangle_v(health_pos, health_size, Color::LIGHTGREEN);
         d.draw_rectangle_lines(
             health_pos.x as i32,
             health_pos.y as i32,
-            health_size.x as i32,
-            health_size.y as i32,
+            rect_size.x as i32,
+            rect_size.y as i32,
             Color::BLACK,
         );
     }
