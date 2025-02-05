@@ -6,10 +6,10 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::{thread, time};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let listener = TcpListener::bind("127.0.0.1:1234")?;
+    let listener = TcpListener::bind("0.0.0.0:1234")?;
     let mut player_1 = Player::new_player_1();
     let mut player_2 = Player::new_player_2();
-    eprintln!("Game server started on local port 1234.");
+    eprintln!("Game server started on {}", listener.local_addr().unwrap());
 
     eprintln!("Waiting for new session...");
 
