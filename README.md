@@ -22,6 +22,6 @@ The game will wait for another player to connect and then begin the game.
 
 ## Some Screenshots
 
-![screenshot](./screenshots/Screenshot from 2025-02-05 22-24-25.png)
-![screenshot](./screenshots/Screenshot from 2025-02-05 22-25-13.png)
+![screenshot](./screenshots/Screenshot1.png)
+![screenshot](./screenshots/Screenshot2.png)
 ![screenshot](./screenshots/Screenshot3.png)
