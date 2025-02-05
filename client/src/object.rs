@@ -4,8 +4,6 @@ use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
 use raylib::ffi::{rlPopMatrix, rlPushMatrix, rlRotatef, rlTranslatef};
 use raylib::math::{BoundingBox, Vector2, Vector3};
 
-use crate::player::find_angle;
-
 // ----------------------------------------------------------------------------
 // Traits for 3D objecs
 // ----------------------------------------------------------------------------

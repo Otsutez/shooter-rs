@@ -2,7 +2,7 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::RaylibMode3DExt;
 use raylib::ffi::{rlPopMatrix, rlPushMatrix, rlRotatef, rlTranslatef};
-use raylib::math::{Ray, Vector3};
+use raylib::math::Vector3;
 use raylib::prelude::RaylibDraw3D;
 use raylib::prelude::RaylibDrawHandle;
 
@@ -10,7 +10,7 @@ pub struct Pistol {
     barrel_size: Vector3,
     grip_size: Vector3,
     color: Color,
-    on_cooldown: bool,
+    // on_cooldown: bool,
 }
 
 impl Pistol {
@@ -36,7 +36,7 @@ impl Pistol {
             barrel_size,
             grip_size,
             color: Color::DARKSLATEBLUE,
-            on_cooldown: false,
+            // on_cooldown: false,
         }
     }
 
