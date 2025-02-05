@@ -8,7 +8,7 @@ use crate::input_box::InputBox;
 use crate::map::Map;
 use crate::object::Drawable3D;
 use crate::player::Player;
-use game_channel::{Channel, Packet};
+use game_channel::{Channel, Packet, Winner};
 use raylib::audio::RaylibAudio;
 use raylib::core::texture::Image;
 use raylib::prelude::*;
@@ -37,7 +37,7 @@ impl Game {
         rl.set_target_fps(60);
 
         Game {
-            state: Some(Box::new(LobbyState::new(rl, thread))),
+            state: Some(Box::new(LobbyState::new(rl, thread, Winner::None))),
         }
     }
 
@@ -64,10 +64,11 @@ struct LobbyState {
     quit_button: Button,
     map: Map,
     camera: Camera3D,
+    winner: Winner,
 }
 
 impl LobbyState {
-    fn new(rl: RaylibHandle, thread: RaylibThread) -> Self {
+    fn new(rl: RaylibHandle, thread: RaylibThread, winner: Winner) -> Self {
         let x = Game::SCREEN_WIDTH / 2 - Button::WIDTH / 2;
         let play_y = Game::SCREEN_HEIGHT / 2 - Button::HEIGHT / 2;
         let quit_y = Game::SCREEN_HEIGHT / 2 + Button::HEIGHT / 2 + Button::SPACING;
@@ -103,12 +104,21 @@ impl LobbyState {
             thread,
             map: Map::default(),
             camera,
+            winner,
         }
     }
 }
 
 impl GameState for LobbyState {
     fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
+        let text = match self.winner {
+            Winner::Player => "YOU WON",
+            Winner::Enemy => "YOU LOSE",
+            Winner::None => "",
+        };
+        let text_width = self.rl.measure_text(text, 60);
+        let text_x = Game::SCREEN_WIDTH / 2 - text_width / 2;
+
         loop {
             if self.rl.window_should_close() {
                 // Return None to signal game over, no new state
@@ -133,13 +143,16 @@ impl GameState for LobbyState {
             self.play_button.draw(&mut d);
             self.quit_button.draw(&mut d);
 
+            // Draw winner
+            d.draw_text(text, text_x, 100, 60, Color::BLACK);
+
             drop(d);
 
             // Check if button is clicked
             if self.play_button.is_clicked() {
                 // Check if can connect to server
-                // let ip = self.input_box.get_text();
-                if let Ok(stream) = TcpStream::connect("127.0.0.1:1234") {
+                let ip = self.input_box.get_text();
+                if let Ok(stream) = TcpStream::connect(ip) {
                     let mut player = Player::default();
 
                     let mut channel = Channel::with_stream(stream);
@@ -416,8 +429,6 @@ impl GameState for PlayState {
                 .write_health(&mut self.channel)
                 .expect("Send enemy health failed");
 
-            // eprintln!("Enemy: {:?}", self.enemy.get_pos());
-
             // Draw
             let player_camera = self.player.get_camera();
             let mut d = self.rl.begin_drawing(&self.thread);
@@ -437,12 +448,6 @@ impl GameState for PlayState {
                 Color::WHITE,
             );
 
-            // Draw ray
-            // if let Some(r) = ray {
-            //     let mut d = d.begin_mode3D(player_camera);
-            //     d.draw_ray(r, Color::BLACK);
-            // }
-
             // Player and enemy position debugging
             let (x, z) = self.player.get_pos();
             let (x2, z2) = self.enemy.get_pos();
@@ -459,14 +464,22 @@ impl GameState for PlayState {
                     .stream
                     .shutdown(Shutdown::Both)
                     .expect("Failed to shutdown TCP stream");
-                break Some(Box::new(LobbyState::new(self.rl, self.thread)));
+                break Some(Box::new(LobbyState::new(
+                    self.rl,
+                    self.thread,
+                    Winner::Enemy,
+                )));
             } else if self.enemy.get_health() == 0 {
                 self.rl.enable_cursor();
                 self.channel
                     .stream
                     .shutdown(Shutdown::Both)
                     .expect("Failed to shutdown TCP stream");
-                break Some(Box::new(LobbyState::new(self.rl, self.thread)));
+                break Some(Box::new(LobbyState::new(
+                    self.rl,
+                    self.thread,
+                    Winner::Player,
+                )));
             }
         }
     }
