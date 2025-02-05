@@ -2,17 +2,26 @@ use bincode::ErrorKind;
 use std::fmt::Display;
 
 #[derive(Debug)]
-pub struct ChannelError(Box<ErrorKind>);
+pub enum ChannelError {
+    Io(std::io::Error),
+    Bincode,
+}
 
 impl From<Box<ErrorKind>> for ChannelError {
     fn from(value: Box<ErrorKind>) -> Self {
-        ChannelError(value)
+        match *value {
+            ErrorKind::Io(error) => ChannelError::Io(error),
+            _ => ChannelError::Bincode,
+        }
     }
 }
 
 impl Display for ChannelError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        match self {
+            ChannelError::Io(error) => error.fmt(f),
+            ChannelError::Bincode => writeln!(f, "Bincode failed to (de)serialize"),
+        }
     }
 }
 impl std::error::Error for ChannelError {}

@@ -8,12 +8,11 @@ use crate::input_box::InputBox;
 use crate::map::Map;
 use crate::object::Drawable3D;
 use crate::player::Player;
-use ffi::LoadWave;
 use game_channel::{Channel, Packet};
 use raylib::audio::RaylibAudio;
 use raylib::core::texture::Image;
 use raylib::prelude::*;
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 
 pub struct Game {
     state: Option<Box<dyn GameState>>,
@@ -142,9 +141,6 @@ impl GameState for LobbyState {
                 // let ip = self.input_box.get_text();
                 if let Ok(stream) = TcpStream::connect("127.0.0.1:1234") {
                     let mut player = Player::default();
-                    // stream
-                    //     .set_nonblocking(true)
-                    //     .expect("Set non blocking failed");
 
                     let mut channel = Channel::with_stream(stream);
                     if let Ok(_) = player.read_stats(&mut channel) {
@@ -207,6 +203,11 @@ impl GameState for WaitState {
             .stream
             .set_nonblocking(true)
             .expect("Set non-blocking failed");
+
+        self.channel
+            .stream
+            .set_nodelay(true)
+            .expect("Set no-delay failed");
 
         let mut enemy = Player::default();
 
@@ -415,6 +416,8 @@ impl GameState for PlayState {
                 .write_health(&mut self.channel)
                 .expect("Send enemy health failed");
 
+            // eprintln!("Enemy: {:?}", self.enemy.get_pos());
+
             // Draw
             let player_camera = self.player.get_camera();
             let mut d = self.rl.begin_drawing(&self.thread);
@@ -447,6 +450,24 @@ impl GameState for PlayState {
             d.draw_text(&format!("Self z: {}", z), 0, 20, 20, Color::RED);
             d.draw_text(&format!("Enemy x: {}", x2), 0, 40, 20, Color::RED);
             d.draw_text(&format!("Enemy z: {}", z2), 0, 60, 20, Color::RED);
+            drop(d);
+
+            // Check if game over
+            if self.player.get_health() == 0 {
+                self.rl.enable_cursor();
+                self.channel
+                    .stream
+                    .shutdown(Shutdown::Both)
+                    .expect("Failed to shutdown TCP stream");
+                break Some(Box::new(LobbyState::new(self.rl, self.thread)));
+            } else if self.enemy.get_health() == 0 {
+                self.rl.enable_cursor();
+                self.channel
+                    .stream
+                    .shutdown(Shutdown::Both)
+                    .expect("Failed to shutdown TCP stream");
+                break Some(Box::new(LobbyState::new(self.rl, self.thread)));
+            }
         }
     }
 }

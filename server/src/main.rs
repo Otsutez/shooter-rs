@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
+use game_channel::error::ChannelError;
 use game_channel::{Channel, ChannelVector2, Packet};
+use std::io::ErrorKind;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::{thread, time};
 
@@ -31,6 +33,7 @@ fn handle_session(
     player_2: &mut Player,
 ) -> Result<()> {
     let (s1, addr) = conn;
+    s1.set_nodelay(true)?;
     eprintln!("Connection from {}", addr);
     let mut c1 = Channel::with_stream(s1);
 
@@ -40,6 +43,7 @@ fn handle_session(
 
     // Wait for connection from player 2
     let (s2, addr) = listener.accept()?;
+    s2.set_nodelay(true)?;
     eprintln!("Connection from {}", addr);
     let mut c2 = Channel::with_stream(s2);
 
@@ -67,27 +71,55 @@ fn handle_session(
     c1.send(Packet::Time(0)).context("Sending time failed")?;
     c2.send(Packet::Time(0)).context("Sending time failed")?;
 
+    let mut s1_closed = false;
+    let mut s2_closed = false;
+
     // Send players current position and receive their next position
     loop {
+        if s1_closed && s2_closed {
+            break;
+        }
+
         // Send enemies
-        player_2.write_pos(&mut c1)?;
-        player_1.write_pos(&mut c2)?;
+        if let Err(ChannelError::Io(_)) = player_2.write_pos(&mut c1) {
+            s1_closed = true;
+        }
+        if let Err(ChannelError::Io(_)) = player_1.write_pos(&mut c2) {
+            s2_closed = true;
+        }
 
         // Send players health
-        player_1.write_health(&mut c1)?;
-        player_2.write_health(&mut c2)?;
+        if let Err(ChannelError::Io(_)) = player_1.write_health(&mut c1) {
+            s1_closed = true;
+        }
+        if let Err(ChannelError::Io(_)) = player_2.write_health(&mut c2) {
+            s2_closed = true;
+        }
 
         // Receive players
-        player_1.read_pos(&mut c1)?;
-        player_2.read_pos(&mut c2)?;
+        if let Err(ChannelError::Io(_)) = player_1.read_pos(&mut c1) {
+            s1_closed = true;
+        }
+        if let Err(ChannelError::Io(_)) = player_2.read_pos(&mut c2) {
+            s2_closed = true;
+        }
 
         // Receive enemies health
-        player_2.read_health(&mut c1)?;
-        player_1.read_health(&mut c2)?;
+        if let Err(ChannelError::Io(e)) = player_2.read_health(&mut c1) {
+            if e.kind() == ErrorKind::ConnectionAborted {
+                s1_closed = true;
+            }
+        }
+        if let Err(ChannelError::Io(e)) = player_1.read_health(&mut c2) {
+            if e.kind() == ErrorKind::ConnectionAborted {
+                s2_closed = true;
+            }
+        }
 
-        eprintln!("player_1: {:?}", player_1.pos);
-        eprintln!("player_2: {:?}", player_2.pos);
+        // eprintln!("player_1: {:?}", player_1.pos);
+        // eprintln!("player_2: {:?}", player_2.pos);
     }
+    Ok(())
 }
 
 struct Player {
@@ -125,35 +157,33 @@ impl Player {
         self.health = 100;
     }
 
-    fn write_pos(&self, channel: &mut Channel<TcpStream>) -> Result<()> {
+    fn write_pos(&self, channel: &mut Channel<TcpStream>) -> Result<(), ChannelError> {
         channel.send(Packet::Player {
             pos: self.pos,
             target: self.target,
-        })?;
-        Ok(())
+        })
     }
 
-    fn read_pos(&mut self, channel: &mut Channel<TcpStream>) -> Result<()> {
-        if let Ok(Packet::Player { pos, target }) = channel.receive() {
-            self.pos = pos;
-            self.target = target;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Failed to receive player position"))
-        }
+    fn read_pos(&mut self, channel: &mut Channel<TcpStream>) -> Result<(), ChannelError> {
+        channel.receive().and_then(|packet| {
+            if let Packet::Player { pos, target } = packet {
+                self.pos = pos;
+                self.target = target;
+            }
+            Err(ChannelError::Bincode)
+        })
     }
 
-    fn write_health(&self, channel: &mut Channel<TcpStream>) -> Result<()> {
-        channel.send(Packet::Health(self.health))?;
-        Ok(())
+    fn write_health(&self, channel: &mut Channel<TcpStream>) -> Result<(), ChannelError> {
+        channel.send(Packet::Health(self.health))
     }
 
-    fn read_health(&mut self, channel: &mut Channel<TcpStream>) -> Result<()> {
-        if let Ok(Packet::Health(health)) = channel.receive() {
-            self.health = health;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Failed to read player health"))
-        }
+    fn read_health(&mut self, channel: &mut Channel<TcpStream>) -> Result<(), ChannelError> {
+        channel.receive().and_then(|packet| {
+            if let Packet::Health(health) = packet {
+                self.health = health;
+            }
+            Err(ChannelError::Bincode)
+        })
     }
 }
