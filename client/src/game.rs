@@ -368,7 +368,7 @@ impl GameState for PlayState {
         let mut ray: Option<Ray> = None;
 
         // Load crosshair texture
-        let image = Image::load_image("./crosshair003.png").expect("Load image failed");
+        let image = Image::load_image("./resources/crosshair003.png").expect("Load image failed");
         let texture = self
             .rl
             .load_texture_from_image(&self.thread, &image)
@@ -377,11 +377,11 @@ impl GameState for PlayState {
         let half_height = texture.height / 2;
 
         let fx_ouch_sound = audio
-            .new_sound("./ouch.mp3")
+            .new_sound("./resources/ouch.mp3")
             .expect("Load ouch sound effects failed");
 
         let fx_gun_sound = audio
-            .new_sound("./gunshot.wav")
+            .new_sound("./resources/gunshot.wav")
             .expect("Load sound from wave failed");
 
         loop {

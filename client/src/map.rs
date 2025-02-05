@@ -53,7 +53,7 @@ impl Default for Map {
         ));
 
         // Construct cuboids
-        let maps = read_to_string("./map.txt").unwrap();
+        let maps = read_to_string("./resources/map.txt").unwrap();
         let maps: Vec<Vec<char>> = maps.lines().map(|line| line.chars().collect()).collect();
 
         let half = Map::WIDTH / 2.0;
