@@ -1,7 +1,10 @@
+use crate::error::ChannelError;
 use bincode;
 use raylib::math::Vector3;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
+
+pub mod error;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 pub struct ChannelVector2 {
@@ -19,6 +22,13 @@ impl From<Vector3> for ChannelVector2 {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub enum Winner {
+    Player,
+    Enemy,
+    None,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum Packet {
     Player {
         pos: ChannelVector2,
@@ -26,12 +36,7 @@ pub enum Packet {
     },
     Time(u8),
     Health(u8),
-}
-
-#[derive(Debug)]
-pub enum ChannelError {
-    SendErr,
-    ReceiveErr,
+    GameOver(Winner),
 }
 
 pub struct Channel<T: Read + Write> {
@@ -44,10 +49,10 @@ impl<T: Read + Write> Channel<T> {
     }
 
     pub fn send(&mut self, packet: Packet) -> Result<(), ChannelError> {
-        bincode::serialize_into(&mut self.stream, &packet).map_err(|_| ChannelError::SendErr)
+        bincode::serialize_into(&mut self.stream, &packet).map_err(|err| err.into())
     }
 
     pub fn receive(&mut self) -> Result<Packet, ChannelError> {
-        bincode::deserialize_from(&mut self.stream).map_err(|_| ChannelError::ReceiveErr)
+        bincode::deserialize_from(&mut self.stream).map_err(|err| err.into())
     }
 }

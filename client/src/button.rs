@@ -53,7 +53,6 @@ impl Button {
 struct Idle;
 struct Hover;
 struct MidClick;
-struct Clicked;
 
 trait ButtonState {
     fn update(self: Box<Self>, rl: &RaylibHandle, button: &mut Button) -> Box<dyn ButtonState>;

@@ -235,6 +235,10 @@ impl Player {
         }
     }
 
+    pub fn get_health(&self) -> u8 {
+        self.health
+    }
+
     fn move_body(&mut self) {
         self.body.move_to(Vector3::new(
             self.camera.position.x,

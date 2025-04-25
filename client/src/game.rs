@@ -8,12 +8,11 @@ use crate::input_box::InputBox;
 use crate::map::Map;
 use crate::object::Drawable3D;
 use crate::player::Player;
-use ffi::LoadWave;
-use game_channel::{Channel, Packet};
+use game_channel::{Channel, Packet, Winner};
 use raylib::audio::RaylibAudio;
 use raylib::core::texture::Image;
 use raylib::prelude::*;
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 
 pub struct Game {
     state: Option<Box<dyn GameState>>,
@@ -38,7 +37,7 @@ impl Game {
         rl.set_target_fps(60);
 
         Game {
-            state: Some(Box::new(LobbyState::new(rl, thread))),
+            state: Some(Box::new(LobbyState::new(rl, thread, Winner::None))),
         }
     }
 
@@ -65,10 +64,11 @@ struct LobbyState {
     quit_button: Button,
     map: Map,
     camera: Camera3D,
+    winner: Winner,
 }
 
 impl LobbyState {
-    fn new(rl: RaylibHandle, thread: RaylibThread) -> Self {
+    fn new(rl: RaylibHandle, thread: RaylibThread, winner: Winner) -> Self {
         let x = Game::SCREEN_WIDTH / 2 - Button::WIDTH / 2;
         let play_y = Game::SCREEN_HEIGHT / 2 - Button::HEIGHT / 2;
         let quit_y = Game::SCREEN_HEIGHT / 2 + Button::HEIGHT / 2 + Button::SPACING;
@@ -104,12 +104,21 @@ impl LobbyState {
             thread,
             map: Map::default(),
             camera,
+            winner,
         }
     }
 }
 
 impl GameState for LobbyState {
     fn run(mut self: Box<Self>) -> Option<Box<dyn GameState>> {
+        let text = match self.winner {
+            Winner::Player => "YOU WON",
+            Winner::Enemy => "YOU LOSE",
+            Winner::None => "",
+        };
+        let text_width = self.rl.measure_text(text, 60);
+        let text_x = Game::SCREEN_WIDTH / 2 - text_width / 2;
+
         loop {
             if self.rl.window_should_close() {
                 // Return None to signal game over, no new state
@@ -134,17 +143,17 @@ impl GameState for LobbyState {
             self.play_button.draw(&mut d);
             self.quit_button.draw(&mut d);
 
+            // Draw winner
+            d.draw_text(text, text_x, 100, 60, Color::BLACK);
+
             drop(d);
 
             // Check if button is clicked
             if self.play_button.is_clicked() {
                 // Check if can connect to server
-                // let ip = self.input_box.get_text();
-                if let Ok(stream) = TcpStream::connect("127.0.0.1:1234") {
+                let ip = self.input_box.get_text();
+                if let Ok(stream) = TcpStream::connect(ip) {
                     let mut player = Player::default();
-                    // stream
-                    //     .set_nonblocking(true)
-                    //     .expect("Set non blocking failed");
 
                     let mut channel = Channel::with_stream(stream);
                     if let Ok(_) = player.read_stats(&mut channel) {
@@ -207,6 +216,11 @@ impl GameState for WaitState {
             .stream
             .set_nonblocking(true)
             .expect("Set non-blocking failed");
+
+        self.channel
+            .stream
+            .set_nodelay(true)
+            .expect("Set no-delay failed");
 
         let mut enemy = Player::default();
 
@@ -354,7 +368,7 @@ impl GameState for PlayState {
         let mut ray: Option<Ray> = None;
 
         // Load crosshair texture
-        let image = Image::load_image("./crosshair003.png").expect("Load image failed");
+        let image = Image::load_image("./resources/crosshair003.png").expect("Load image failed");
         let texture = self
             .rl
             .load_texture_from_image(&self.thread, &image)
@@ -363,11 +377,11 @@ impl GameState for PlayState {
         let half_height = texture.height / 2;
 
         let fx_ouch_sound = audio
-            .new_sound("./ouch.mp3")
+            .new_sound("./resources/ouch.mp3")
             .expect("Load ouch sound effects failed");
 
         let fx_gun_sound = audio
-            .new_sound("./gunshot.wav")
+            .new_sound("./resources/gunshot.wav")
             .expect("Load sound from wave failed");
 
         loop {
@@ -434,12 +448,6 @@ impl GameState for PlayState {
                 Color::WHITE,
             );
 
-            // Draw ray
-            // if let Some(r) = ray {
-            //     let mut d = d.begin_mode3D(player_camera);
-            //     d.draw_ray(r, Color::BLACK);
-            // }
-
             // Player and enemy position debugging
             let (x, z) = self.player.get_pos();
             let (x2, z2) = self.enemy.get_pos();
@@ -447,6 +455,32 @@ impl GameState for PlayState {
             d.draw_text(&format!("Self z: {}", z), 10, 30, 20, Color::RED);
             d.draw_text(&format!("Enemy x: {}", x2), 10, 50, 20, Color::RED);
             d.draw_text(&format!("Enemy z: {}", z2), 10, 70, 20, Color::RED);
+            drop(d);
+
+            // Check if game over
+            if self.player.get_health() == 0 {
+                self.rl.enable_cursor();
+                self.channel
+                    .stream
+                    .shutdown(Shutdown::Both)
+                    .expect("Failed to shutdown TCP stream");
+                break Some(Box::new(LobbyState::new(
+                    self.rl,
+                    self.thread,
+                    Winner::Enemy,
+                )));
+            } else if self.enemy.get_health() == 0 {
+                self.rl.enable_cursor();
+                self.channel
+                    .stream
+                    .shutdown(Shutdown::Both)
+                    .expect("Failed to shutdown TCP stream");
+                break Some(Box::new(LobbyState::new(
+                    self.rl,
+                    self.thread,
+                    Winner::Player,
+                )));
+            }
         }
     }
 }
