@@ -443,10 +443,10 @@ impl GameState for PlayState {
             // Player and enemy position debugging
             let (x, z) = self.player.get_pos();
             let (x2, z2) = self.enemy.get_pos();
-            d.draw_text(&format!("Self x: {}", x), 0, 0, 20, Color::RED);
-            d.draw_text(&format!("Self z: {}", z), 0, 20, 20, Color::RED);
-            d.draw_text(&format!("Enemy x: {}", x2), 0, 40, 20, Color::RED);
-            d.draw_text(&format!("Enemy z: {}", z2), 0, 60, 20, Color::RED);
+            d.draw_text(&format!("Self x: {}", x), 10, 10, 20, Color::RED);
+            d.draw_text(&format!("Self z: {}", z), 10, 30, 20, Color::RED);
+            d.draw_text(&format!("Enemy x: {}", x2), 10, 50, 20, Color::RED);
+            d.draw_text(&format!("Enemy z: {}", z2), 10, 70, 20, Color::RED);
         }
     }
 }
